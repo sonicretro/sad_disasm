@@ -1,0 +1,1 @@
+Putting these here in case anybody wants to look at them. I disassembled these primarily to locate the LandTable data for SA1LVL. I don't plan on learning SH-4 ASM, but if anybody else wants to try, go ahead. -MainMemory
