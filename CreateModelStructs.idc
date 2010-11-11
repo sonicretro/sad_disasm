@@ -114,14 +114,6 @@ static main()
 		AddStrucMember(strID, "Y", 0x4, FF_DWRD, -1, 4);
 		AddStrucMember(strID, "Z", 0x8, FF_DWRD, -1, 4);
 	}
-	strID = AddStrucEx(-1, "BGRAColor", 0);
-	if(strID != -1)
-	{
-		AddStrucMember(strID, "Blue", 0x0, FF_BYTE, -1, 1);
-		AddStrucMember(strID, "Green", 0x1, FF_BYTE, -1, 1);
-		AddStrucMember(strID, "Red", 0x2, FF_BYTE, -1, 1);
-		AddStrucMember(strID, "Alpha", 0x3, FF_BYTE, -1, 1);
-	}
 	strID = AddStrucEx(-1, "LandTable", 0);
 	if(strID != -1)
 	{
@@ -185,13 +177,19 @@ static main()
 	strID = AddStrucEx(-1, "MATERIAL", 0);
 	if(strID != -1)
 	{
-		AddStrucMember(strID, "Diffuse", 0x0, FF_STRU, GetStrucIdByName("BGRAColor"), 4);
-		AddStrucMember(strID, "Specular", 0x4, FF_STRU, GetStrucIdByName("BGRAColor"), 4);
+		AddStrucMember(strID, "Diffuse", 0x0, FF_DWRD, -1, 4);
+		AddStrucMember(strID, "Specular", 0x4, FF_DWRD, -1, 4);
 		AddStrucMember(strID, "field_8", 0x8, FF_FLOAT, -1, 4);
 		AddStrucMember(strID, "TexID", 0xC, FF_DWRD|FF_0NUMD, -1, 4);
 		AddStrucMember(strID, "field_10", 0x10, FF_WORD, -1, 2);
 		AddStrucMember(strID, "Flags", 0x12, FF_BYTE, -1, 1);
 		AddStrucMember(strID, "EndOfMat", 0x13, FF_BYTE, -1, 1);
+	}
+	strID = AddStrucEx(-1, "UV", 0);
+	if(strID != -1)
+	{
+		AddStrucMember(strID, "U", 0x0, FF_WORD|FF_0NUMD, -1, 2);
+		AddStrucMember(strID, "V", 0x2, FF_WORD|FF_0NUMD, -1, 2);
 	}
 	strID = AddStrucEx(-1, "GeoAnimData", 0);
 	if(strID != -1)
@@ -235,35 +233,10 @@ static main()
 static MakeModelStructs(address)
 {
 	auto ptr;
-	auto ptr2;
-	auto cnt;
 	MakeUnknown(address, GetStrucSize(GetStrucIdByName("OBJECT")), 2);
 	MakeStructEx(address, -1, "OBJECT");
 	ptr=Dword(address+4);
-	if(ptr != 0)
-	{
-		MakeUnknown(ptr, GetStrucSize(GetStrucIdByName("ATTACH")), 2);
-		MakeStructEx(ptr, -1, "ATTACH");
-		cnt=Dword(ptr+8);
-		ptr2=Dword(ptr);
-		MakeUnknown(ptr2, GetStrucSize(GetStrucIdByName("Vector3")) * cnt, 2);
-		MakeStructEx(ptr2, -1, "Vector3");
-		MakeArray(ptr2, cnt);
-		ptr2=Dword(ptr+4);
-		MakeUnknown(ptr2, GetStrucSize(GetStrucIdByName("Vector3")) * cnt, 2);
-		MakeStructEx(ptr2, -1, "Vector3");
-		MakeArray(ptr2, cnt);
-		cnt=Word(ptr+0x16);
-		ptr2=Dword(ptr+0x10);
-		MakeUnknown(ptr2, GetStrucSize(GetStrucIdByName("MATERIAL")) * cnt, 2);
-		MakeStructEx(ptr2, -1, "MATERIAL");
-		MakeArray(ptr2, cnt);
-		cnt=Word(ptr+0x14);
-		ptr2=Dword(ptr+0xC);
-		MakeUnknown(ptr2, GetStrucSize(GetStrucIdByName("MESH")) * cnt, 2);
-		MakeStructEx(ptr2, -1, "MESH");
-		MakeArray(ptr2, cnt);
-	}
+	if(ptr != 0) MakeAttachStructs(ptr);
 	ptr=Dword(address+0x2C);
 	if(ptr != 0) MakeModelStructs(ptr);
 	ptr=Dword(address+0x30);
@@ -291,6 +264,13 @@ static MakeAttachStructs(address)
 {
 	auto ptr2;
 	auto cnt;
+	auto polytype;
+	auto i;
+	auto j;
+	auto polycnt;
+	auto ptr3;
+	auto strcnt;
+	auto uvcnt;
 	MakeUnknown(address, GetStrucSize(GetStrucIdByName("ATTACH")), 2);
 	MakeStructEx(address, -1, "ATTACH");
 	cnt=Dword(address+8);
@@ -312,6 +292,59 @@ static MakeAttachStructs(address)
 	MakeUnknown(ptr2, GetStrucSize(GetStrucIdByName("MESH")) * cnt, 2);
 	MakeStructEx(ptr2, -1, "MESH");
 	MakeArray(ptr2, cnt);
+	for(i=0;i<cnt;i=i+1)
+	{
+		uvcnt=0;
+		polytype=(Word(ptr2)>>0xC)&0xC;
+		polycnt=Word(ptr2+2);
+		ptr3=Dword(ptr2+4);
+		if(polytype==0)
+		{
+			MakeUnknown(ptr3, polycnt*6, 2);
+			MakeData(ptr3, FF_WORD, 2, 0);
+			MakeArray(ptr3, polycnt*3);
+			uvcnt=polycnt*3;
+		}
+		else if(polytype==4)
+		{
+			MakeUnknown(ptr3, polycnt*8, 2);
+			MakeData(ptr3, FF_WORD, 2, 0);
+			MakeArray(ptr3, polycnt*4);
+			uvcnt=polycnt*4;
+		}
+		else
+		{
+			for(j=0;j<polycnt;j=j+1)
+			{
+				MakeUnknown(ptr3, 2, 2);
+				MakeData(ptr3, FF_BYTE, 1, 0);
+				MakeData(ptr3+1, FF_BYTE, 1, 0);
+				strcnt=Byte(ptr3);
+				MakeComm(ptr3, "Strip " + ltoa(j+1,10));
+				ptr3=ptr3+2;
+				MakeUnknown(ptr3, strcnt*2, 2);
+				MakeData(ptr3, FF_WORD, 2, 0);
+				MakeArray(ptr3, strcnt);
+				ptr3=ptr3+(strcnt*2);
+				uvcnt=uvcnt+strcnt;
+			}
+		}
+		ptr3=Dword(ptr2+0x10);
+		if(ptr3 != 0)
+		{
+			MakeUnknown(ptr3, uvcnt*4, 2);
+			MakeDword(ptr3);
+			MakeArray(ptr3, uvcnt);
+		}
+		ptr3=Dword(ptr2+0x14);
+		if(ptr3 != 0)
+		{
+			MakeUnknown(ptr3, uvcnt*4, 2);
+			MakeStructEx(ptr3, -1, "UV");
+			MakeArray(ptr3, uvcnt);
+		}
+		ptr2=ptr2+GetStrucSize(GetStrucIdByName("MESH"));
+	}
 }
 
 static MakeLandTableStructs(address)
