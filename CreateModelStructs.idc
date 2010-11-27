@@ -291,6 +291,8 @@ static MakeAttachStructs(address)
 	ptr2=Dword(address+0xC);
 	MakeUnknown(ptr2, GetStrucSize(GetStrucIdByName("MESH")) * cnt, 2);
 	MakeStructEx(ptr2, -1, "MESH");
+	if(Dword(ptr2+0x8) != 0) Message("Non-0 PAttr at MESH_" + ltoa(ptr2,16) + "!\n");
+	if(Dword(ptr2+0xC) != 0) Message("Non-0 PNormal at MESH_" + ltoa(ptr2,16) + "!\n");
 	MakeArray(ptr2, cnt);
 	for(i=0;i<cnt;i=i+1)
 	{
